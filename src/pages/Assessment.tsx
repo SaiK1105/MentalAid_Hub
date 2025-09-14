@@ -8,6 +8,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { ClipboardCheck, Home, AlertTriangle, CheckCircle, Heart } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 interface Question {
   id: string;
@@ -18,10 +21,13 @@ interface Question {
 const Assessment = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [currentTest, setCurrentTest] = useState<"select" | "phq9" | "gad7" | "results">("select");
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [testResults, setTestResults] = useState<{ phq9?: number; gad7?: number }>({});
+  const [loading, setLoading] = useState(false);
 
   const phq9Questions: Question[] = [
     {
@@ -118,6 +124,40 @@ const Assessment = () => {
     const questionId = questions[currentQuestion].id;
     setAnswers(prev => ({ ...prev, [questionId]: parseInt(value) }));
   };
+  
+  const getSeverityLevel = (score: number, type: "phq9" | "gad7") => {
+    if (type === "phq9") {
+      if (score <= 4) return { level: "minimal", color: "secondary" };
+      if (score <= 9) return { level: "mild", color: "outline" };
+      if (score <= 14) return { level: "moderate", color: "outline" };
+      if (score <= 19) return { level: "moderately severe", color: "destructive" };
+      return { level: "severe", color: "destructive" };
+    } else { // gad7
+      if (score <= 4) return { level: "minimal", color: "secondary" };
+      if (score <= 9) return { level: "mild", color: "outline" };
+      if (score <= 14) return { level: "moderate", color: "outline" };
+      return { level: "severe", color: "destructive" };
+    }
+  };
+
+  const saveAssessmentResults = async (type: 'phq9' | 'gad7', score: number, responses: Record<string, number>) => {
+    if (!user) return;
+
+    const severity = getSeverityLevel(score, type).level;
+
+    const { error } = await supabase.from('assessments').insert({
+        user_id: user.id,
+        type: type,
+        score: score,
+        severity_level: severity,
+        responses: responses,
+    });
+
+    if (error) {
+        console.error(`Error saving ${type} assessment:`, error);
+        toast({ title: "Save Failed", description: `Could not save your ${type} results.`, variant: "destructive" });
+    }
+  };
 
   const nextQuestion = () => {
     const questions = getCurrentQuestions();
@@ -134,39 +174,32 @@ const Assessment = () => {
     }
   };
 
-  const calculateResults = () => {
+  const calculateResults = async () => {
+    setLoading(true);
     const questions = getCurrentQuestions();
+    const testType = currentTest as 'phq9' | 'gad7';
+    
+    const relevantAnswers: Record<string, number> = {};
     const score = questions.reduce((total, question) => {
-      return total + (answers[question.id] || 0);
+      const answer = answers[question.id] || 0;
+      relevantAnswers[question.id] = answer;
+      return total + answer;
     }, 0);
 
     setTestResults(prev => ({
       ...prev,
-      [currentTest]: score
+      [testType]: score
     }));
 
-    if (currentTest === "phq9" && !testResults.gad7) {
-      // Automatically start GAD-7 after PHQ-9
+    await saveAssessmentResults(testType, score, relevantAnswers);
+
+    if (testType === "phq9" && !testResults.gad7) {
       setCurrentTest("gad7");
       setCurrentQuestion(0);
     } else {
       setCurrentTest("results");
     }
-  };
-
-  const getSeverityLevel = (score: number, type: "phq9" | "gad7") => {
-    if (type === "phq9") {
-      if (score <= 4) return { level: "minimal", color: "secondary" };
-      if (score <= 9) return { level: "mild", color: "outline" };
-      if (score <= 14) return { level: "moderate", color: "outline" };
-      if (score <= 19) return { level: "moderately severe", color: "destructive" };
-      return { level: "severe", color: "destructive" };
-    } else {
-      if (score <= 4) return { level: "minimal", color: "secondary" };
-      if (score <= 9) return { level: "mild", color: "outline" };
-      if (score <= 14) return { level: "moderate", color: "outline" };
-      return { level: "severe", color: "destructive" };
-    }
+    setLoading(false);
   };
 
   const getRecommendations = () => {
@@ -422,17 +455,17 @@ const Assessment = () => {
           <Button
             variant="outline"
             onClick={prevQuestion}
-            disabled={currentQuestion === 0}
+            disabled={currentQuestion === 0 || loading}
             className="flex-1"
           >
             Previous
           </Button>
           <Button
             onClick={nextQuestion}
-            disabled={answers[currentQ.id] === undefined}
+            disabled={answers[currentQ.id] === undefined || loading}
             className="flex-1 bg-gradient-to-r from-primary to-secondary"
           >
-            {currentQuestion === questions.length - 1 ? "Complete" : "Next"}
+            {loading ? "Saving..." : (currentQuestion === questions.length - 1 ? "Complete" : "Next")}
           </Button>
         </div>
       </div>

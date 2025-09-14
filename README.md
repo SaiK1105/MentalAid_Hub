@@ -52,4 +52,8 @@ Open the URL printed by Vite (commonly `http://localhost:5173`).
 - If the dev server complains it "can't find .env", make sure you run the command from the project root (where `package.json` and `.env` are located).
 
 ## License
+<<<<<<< HEAD
 This project is provided as-is. Add your license information here.
+=======
+This project is provided as-is. Add your license information here.
+>>>>>>> 490db6e91feaab9c7efafe636672047eb685a689

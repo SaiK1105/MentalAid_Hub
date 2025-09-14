@@ -7,7 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { MessageSquare, Send, Bot, User, AlertTriangle, Heart, Home } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import.meta.env.VITE_GEMINI_API_KEY;
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
 interface Message {
   id: string;
   content: string;
@@ -19,24 +24,51 @@ interface Message {
 const AIChat = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const isUrgent = searchParams.get("urgent") === "true";
   
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      content: isUrgent 
-        ? "I understand you're in crisis. I'm here to help you right now. How are you feeling at this moment? Please know that you're safe and we can work through this together."
-        : t('chat.welcome'),
-      sender: "ai",
-      timestamp: new Date()
-    }
-  ]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [riskAssessment, setRiskAssessment] = useState<"low" | "medium" | "high" | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const setupChatSession = async () => {
+        if (!user) return;
+
+        // For simplicity, we'll create a new session on each page load.
+        // In a real app, you might want to fetch the latest session.
+        const { data, error } = await supabase
+            .from('chat_sessions')
+            .insert({ user_id: user.id, title: `Chat on ${new Date().toLocaleDateString()}` })
+            .select()
+            .single();
+
+        if (error) {
+            console.error("Error creating chat session:", error);
+            toast({ title: "Error", description: "Could not start a new chat session.", variant: "destructive" });
+        } else {
+            setSessionId(data.id);
+            // Add initial welcome message
+            const welcomeMessage: Message = {
+                id: "1",
+                content: isUrgent 
+                    ? "I understand you're in crisis. I'm here to help you right now. How are you feeling at this moment? Please know that you're safe and we can work through this together."
+                    : t('chat.welcome'),
+                sender: "ai",
+                timestamp: new Date()
+            };
+            setMessages([welcomeMessage]);
+        }
+    };
+    setupChatSession();
+  }, [user, isUrgent, t, toast]);
+
 
   const riskKeywords = {
     high: ["suicide", "kill myself", "end it all", "not worth living", "hurt myself"],
@@ -57,8 +89,7 @@ const AIChat = () => {
   };
 
   const getAIResponse = async (userMessage: string, risk: "low" | "medium" | "high"): Promise<string> => {
-    // Correctly use the API key provided by the environment
-    const apiKey = "";
+    const apiKey = GEMINI_API_KEY;
     
     const systemPrompts = {
       high: "You are a crisis counselor. The user is expressing thoughts of self-harm or suicide. Respond with immediate care, validation, and clear direction to emergency resources. Always mention calling 1075 (India crisis line) or emergency services. Be empathetic but directive about seeking immediate help.",
@@ -73,7 +104,6 @@ const AIChat = () => {
               text: `${systemPrompts[risk]}\n\nUser message: ${userMessage}\n\nRespond with empathy and appropriate guidance based on the risk level.`
             }]
           }],
-          tools: [{ "google_search": {} }],
           generationConfig: {
             temperature: 0.7,
             maxOutputTokens: 200,
@@ -97,7 +127,6 @@ const AIChat = () => {
       return data.candidates[0]?.content?.parts[0]?.text || "I'm here to listen. Can you tell me more about what you're experiencing?";
     } catch (error) {
       console.error('AI API Error:', error);
-      // Fallback responses for when API fails
       const fallbackResponses = {
         high: "I hear that you're in a lot of pain right now. Your life has value and you matter. Please reach out to the crisis hotline at 1075 or emergency services immediately. I'm also here to talk - can you tell me if you're in a safe place right now?",
         medium: "I understand you're going through a difficult time. These feelings can be overwhelming, but you don't have to face them alone. Let's work on some coping strategies together. Take a deep breath with me - in for 4, hold for 4, out for 4.",
@@ -108,7 +137,7 @@ const AIChat = () => {
   };
 
   const sendMessage = async () => {
-    if (!inputMessage.trim()) return;
+    if (!inputMessage.trim() || !sessionId) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -116,16 +145,23 @@ const AIChat = () => {
       sender: "user",
       timestamp: new Date()
     };
-
+    
     setMessages(prev => [...prev, userMessage]);
     setInputMessage("");
     setIsTyping(true);
 
-    // Assess risk level
     const risk = assessRisk(inputMessage);
     setRiskAssessment(risk);
 
-    // Get AI response
+    // Save user message to DB
+    const { error: userMsgError } = await supabase.from('chat_messages').insert({
+        session_id: sessionId,
+        content: userMessage.content,
+        sender: 'user',
+        risk_level: risk
+    });
+    if (userMsgError) console.error("Error saving user message:", userMsgError);
+
     try {
       const aiContent = await getAIResponse(inputMessage, risk);
       const aiResponse: Message = {
@@ -137,7 +173,16 @@ const AIChat = () => {
       };
 
       setMessages(prev => [...prev, aiResponse]);
-      setIsTyping(false);
+      
+      // Save AI message to DB
+      const { error: aiMsgError } = await supabase.from('chat_messages').insert({
+        session_id: sessionId,
+        content: aiResponse.content,
+        sender: 'ai',
+        risk_level: risk
+      });
+      if (aiMsgError) console.error("Error saving AI message:", aiMsgError);
+
     } catch (error) {
       console.error('Failed to get AI response:', error);
       const errorResponse: Message = {
@@ -148,6 +193,7 @@ const AIChat = () => {
         riskLevel: risk
       };
       setMessages(prev => [...prev, errorResponse]);
+    } finally {
       setIsTyping(false);
     }
   };
@@ -296,11 +342,11 @@ const AIChat = () => {
               placeholder={t('chat.placeholder')}
               onKeyPress={(e) => e.key === "Enter" && sendMessage()}
               className="flex-1"
-              disabled={isTyping}
+              disabled={isTyping || !sessionId}
             />
             <Button
               onClick={sendMessage}
-              disabled={!inputMessage.trim() || isTyping}
+              disabled={!inputMessage.trim() || isTyping || !sessionId}
               className="bg-gradient-to-r from-primary to-secondary"
             >
               <Send className="w-4 h-4" />
@@ -313,7 +359,7 @@ const AIChat = () => {
               variant="outline"
               size="sm"
               onClick={() => setInputMessage("I'm feeling overwhelmed")}
-              disabled={isTyping}
+              disabled={isTyping || !sessionId}
             >
               I'm overwhelmed
             </Button>
@@ -321,7 +367,7 @@ const AIChat = () => {
               variant="outline"
               size="sm"
               onClick={() => setInputMessage("I need coping strategies")}
-              disabled={isTyping}
+              disabled={isTyping || !sessionId}
             >
               Need coping strategies
             </Button>
@@ -329,7 +375,7 @@ const AIChat = () => {
               variant="outline"
               size="sm"
               onClick={() => setInputMessage("I'm having a panic attack")}
-              disabled={isTyping}
+              disabled={isTyping || !sessionId}
             >
               Having panic attack
             </Button>
@@ -341,4 +387,3 @@ const AIChat = () => {
 };
 
 export default AIChat;
-// Correctly use the API key provided by the environment

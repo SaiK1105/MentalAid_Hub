@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,15 +7,45 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare, ClipboardCheck, BookOpen, Calendar, Heart, Shield } from "lucide-react";
 import LanguageSelector from "@/components/LanguageSelector";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+interface Profile {
+    display_name: string | null;
+}
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
+  const [profile, setProfile] = useState<Profile | null>(null);
+
   const [userPrefs] = useState(() => {
     const saved = localStorage.getItem("userPrefs");
     return saved ? JSON.parse(saved) : { isAnonymous: true, language: "en" };
   });
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+        if (!user) return;
+
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('user_id', user.id)
+            .single();
+
+        if (error) {
+            console.error("Error fetching profile", error);
+            toast({ title: "Error", description: "Could not fetch your profile.", variant: "destructive" });
+        } else if (data) {
+            setProfile(data);
+        }
+    };
+    fetchProfile();
+  }, [user, toast]);
+
 
   const features = [
     {
@@ -67,7 +97,7 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold">{t('dashboard.welcome')}</h1>
+            <h1 className="text-3xl font-bold">{t('dashboard.welcome')}, {profile?.display_name || 'there'}!</h1>
             <p className="text-muted-foreground">
               {t('dashboard.howFeeling')}
             </p>

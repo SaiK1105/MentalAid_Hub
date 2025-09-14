@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarIcon, Clock, User, Star, MapPin, Home, Video, Phone, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 interface Counsellor {
   id: string;
@@ -19,22 +22,26 @@ interface Counsellor {
   title: string;
   specializations: string[];
   rating: number;
-  experience: string;
+  experience: number;
   languages: string[];
-  availability: string[];
-  sessionTypes: ("video" | "phone" | "in-person")[];
+  availability: any;
+  session_types: ("video" | "phone" | "in-person")[];
   bio: string;
 }
 
 const Booking = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [step, setStep] = useState<"select-counsellor" | "select-time" | "details" | "confirmation">("select-counsellor");
   const [selectedCounsellor, setSelectedCounsellor] = useState<Counsellor | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState("");
   const [sessionType, setSessionType] = useState<"video" | "phone" | "in-person">("video");
-  const [isAnonymous, setIsAnonymous] = useState(true);
+  const [counsellors, setCounsellors] = useState<Counsellor[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [bookingDetails, setBookingDetails] = useState({
     name: "",
     email: "",
@@ -43,44 +50,31 @@ const Booking = () => {
     urgency: "routine"
   });
 
-  const counsellors: Counsellor[] = [
-    {
-      id: "1",
-      name: "Dr. Sarah Chen",
-      title: "Licensed Clinical Psychologist",
-      specializations: ["Anxiety", "Depression", "CBT", "Trauma"],
-      rating: 4.9,
-      experience: "10+ years",
-      languages: ["English", "Mandarin"],
-      availability: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-      sessionTypes: ["video", "phone", "in-person"],
-      bio: "Specializing in cognitive behavioral therapy and mindfulness-based interventions for anxiety and depression."
-    },
-    {
-      id: "2",
-      name: "Dr. Michael Rodriguez",
-      title: "Licensed Professional Counsellor",
-      specializations: ["Student Mental Health", "Stress", "Career Counselling"],
-      rating: 4.8,
-      experience: "8+ years",
-      languages: ["English", "Spanish"],
-      availability: ["Mon", "Wed", "Thu", "Fri", "Sat"],
-      sessionTypes: ["video", "phone"],
-      bio: "Focused on helping students navigate academic stress, career decisions, and life transitions."
-    },
-    {
-      id: "3",
-      name: "Dr. Priya Patel",
-      title: "Psychiatrist",
-      specializations: ["Medication Management", "Severe Depression", "Bipolar"],
-      rating: 4.9,
-      experience: "12+ years",
-      languages: ["English", "Hindi", "Gujarati"],
-      availability: ["Tue", "Wed", "Thu", "Fri"],
-      sessionTypes: ["video", "in-person"],
-      bio: "Experienced in comprehensive mental health treatment including therapy and medication management."
-    }
-  ];
+  useEffect(() => {
+    const fetchCounsellors = async () => {
+      setLoading(true);
+      const { data, error } = await supabase.from('counsellors').select('*');
+      if (error) {
+        console.error("Error fetching counsellors:", error);
+        toast({ title: "Error", description: "Could not fetch counsellors.", variant: "destructive" });
+        setCounsellors([]); // Set to empty array on error
+      } else {
+        setCounsellors(
+          (data || []).map((c) => ({
+            ...c,
+            session_types: (c.session_types as string[]).filter(
+              (type): type is "video" | "phone" | "in-person" =>
+                type === "video" || type === "phone" || type === "in-person"
+            ),
+          }))
+        ); // Ensure session_types is correctly typed
+      }
+      setLoading(false);
+    };
+
+    fetchCounsellors();
+  }, [toast]);
+
 
   const timeSlots = [
     "09:00 AM", "10:00 AM", "11:00 AM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM"
@@ -93,10 +87,49 @@ const Booking = () => {
       case "in-person": return MapPin;
     }
   };
+  
+  const formatTimeTo24h = (time12h: string) => {
+    if (!time12h) return "00:00:00";
+    const [time, modifier] = time12h.split(' ');
+    let [hours, minutes] = time.split(':');
+    if (hours === '12') {
+        hours = '00';
+    }
+    if (modifier === 'PM') {
+        hours = (parseInt(hours, 10) + 12).toString().padStart(2, '0');
+    }
+    return `${hours.padStart(2, '0')}:${minutes}:00`;
+  };
 
-  const handleBooking = () => {
-    // Simulate booking confirmation
-    setStep("confirmation");
+  const handleBooking = async () => {
+    if (!user || !selectedCounsellor || !selectedDate || !selectedTime) {
+        toast({ title: "Missing Information", description: "Please complete all steps before confirming.", variant: "destructive"});
+        return;
+    }
+
+    setLoading(true);
+
+    const { error } = await supabase.from('bookings').insert({
+        user_id: user.id,
+        counsellor_id: selectedCounsellor.id,
+        session_type: sessionType,
+        session_date: format(selectedDate, "yyyy-MM-dd"),
+        session_time: formatTimeTo24h(selectedTime),
+        user_name: bookingDetails.name || 'Anonymous',
+        user_email: bookingDetails.email,
+        user_phone: bookingDetails.phone,
+        concerns: bookingDetails.concerns,
+        status: 'confirmed'
+    });
+
+    setLoading(false);
+
+    if (error) {
+        console.error("Error creating booking:", error);
+        toast({ title: "Booking Failed", description: error.message, variant: "destructive" });
+    } else {
+        setStep("confirmation");
+    }
   };
 
   if (step === "confirmation") {
@@ -225,7 +258,8 @@ const Booking = () => {
         {/* Step Content */}
         {step === "select-counsellor" && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {counsellors.map((counsellor) => (
+            {loading ? Array.from({ length: 3 }).map((_, i) => <Card key={i} className="animate-pulse h-96 bg-muted"></Card>) 
+            : counsellors.map((counsellor) => (
               <Card 
                 key={counsellor.id}
                 className={`cursor-pointer transition-all duration-300 hover:shadow-card ${
@@ -263,7 +297,7 @@ const Booking = () => {
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
                       <Label className="text-xs font-medium">Experience</Label>
-                      <p className="text-muted-foreground">{counsellor.experience}</p>
+                      <p className="text-muted-foreground">{counsellor.experience} years</p>
                     </div>
                     <div>
                       <Label className="text-xs font-medium">Languages</Label>
@@ -274,7 +308,7 @@ const Booking = () => {
                   <div className="space-y-2">
                     <Label className="text-xs font-medium">Session Types</Label>
                     <div className="flex gap-1">
-                      {counsellor.sessionTypes.map((type) => {
+                      {counsellor.session_types?.map((type) => {
                         const IconComponent = getSessionIcon(type);
                         return (
                           <Badge key={type} variant="outline" className="text-xs">
@@ -321,7 +355,7 @@ const Booking = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 gap-3">
-                    {selectedCounsellor.sessionTypes.map((type) => {
+                    {selectedCounsellor.session_types?.map((type) => {
                       const IconComponent = getSessionIcon(type);
                       return (
                         <Button
@@ -389,12 +423,12 @@ const Booking = () => {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name {!isAnonymous && "*"}</Label>
+                  <Label htmlFor="name">Full Name (Optional)</Label>
                   <Input
                     id="name"
                     value={bookingDetails.name}
                     onChange={(e) => setBookingDetails(prev => ({...prev, name: e.target.value}))}
-                    placeholder={isAnonymous ? "Optional - can remain anonymous" : "Your full name"}
+                    placeholder="Can remain anonymous"
                   />
                 </div>
                 <div className="space-y-2">
@@ -462,7 +496,7 @@ const Booking = () => {
                   if (step === "select-time") setStep("select-counsellor");
                   else if (step === "details") setStep("select-time");
                 }}
-                disabled={step === "select-counsellor"}
+                disabled={step === "select-counsellor" || loading}
               >
                 Previous
               </Button>
@@ -476,11 +510,12 @@ const Booking = () => {
                 disabled={
                   (step === "select-counsellor" && !selectedCounsellor) ||
                   (step === "select-time" && (!selectedDate || !selectedTime)) ||
-                  (step === "details" && !bookingDetails.email)
+                  (step === "details" && !bookingDetails.email) ||
+                  loading
                 }
                 className="bg-gradient-to-r from-primary to-secondary"
               >
-                {step === "details" ? "Confirm Booking" : "Next"}
+                {loading ? "Processing..." : (step === "details" ? "Confirm Booking" : "Next")}
               </Button>
             </div>
           </CardContent>
@@ -491,3 +526,7 @@ const Booking = () => {
 };
 
 export default Booking;
+
+
+
+
