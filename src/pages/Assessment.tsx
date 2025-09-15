@@ -130,7 +130,7 @@ const Assessment = () => {
       if (score <= 4) return { level: "minimal", color: "secondary" };
       if (score <= 9) return { level: "mild", color: "outline" };
       if (score <= 14) return { level: "moderate", color: "outline" };
-      if (score <= 19) return { level: "moderately severe", color: "destructive" };
+      if (score <= 19) return { level: "severe", color: "destructive" };
       return { level: "severe", color: "destructive" };
     } else { // gad7
       if (score <= 4) return { level: "minimal", color: "secondary" };
@@ -143,13 +143,11 @@ const Assessment = () => {
   const saveAssessmentResults = async (type: 'phq9' | 'gad7', score: number, responses: Record<string, number>) => {
     if (!user) return;
 
-    const severity = getSeverityLevel(score, type).level;
-
     const { error } = await supabase.from('assessments').insert({
         user_id: user.id,
         type: type,
         score: score,
-        severity_level: severity,
+        severity_level: getSeverityLevel(score, type).level,
         responses: responses,
     });
 
@@ -158,6 +156,7 @@ const Assessment = () => {
         toast({ title: "Save Failed", description: `Could not save your ${type} results.`, variant: "destructive" });
     }
   };
+
 
   const nextQuestion = () => {
     const questions = getCurrentQuestions();
