@@ -18,12 +18,15 @@ const resources = {
       "dashboard.howFeeling": "How are you feeling today?",
       "dashboard.aiChat": "AI First-Aid Chat",
       "dashboard.aiChatDesc": "Get immediate support through our guided chat",
+      "dashboard.aiChatCta": "Start Chat",
       "dashboard.assessment": "Mental Health Assessment",
       "dashboard.assessmentDesc": "Take a quick assessment to understand your mental state",
       "dashboard.resources": "Mental Health Resources",
       "dashboard.resourcesDesc": "Access helpful articles, videos, and guides",
+      "dashboard.resourcesCta": "Explore Resources",
       "dashboard.booking": "Book a Counsellor",
       "dashboard.bookingDesc": "Schedule a session with a professional counsellor",
+      "dashboard.bookingCta": "Book Now",
       
       // Crisis support
       "crisis.needHelp": "Need immediate help?",
@@ -83,12 +86,15 @@ const resources = {
       "dashboard.howFeeling": "आज आप कैसा महसूस कर रहे हैं?",
       "dashboard.aiChat": "एआई प्राथमिक सहायता चैट",
       "dashboard.aiChatDesc": "हमारी निर्देशित चैट के माध्यम से तत्काल सहायता प्राप्त करें",
+      "dashboard.aiChatCta": "चैट शुरू करें",
       "dashboard.assessment": "मानसिक स्वास्थ्य मूल्यांकन",
       "dashboard.assessmentDesc": "अपनी मानसिक स्थिति को समझने के लिए एक त्वरित मूल्यांकन लें",
       "dashboard.resources": "मानसिक स्वास्थ्य संसाधन",
       "dashboard.resourcesDesc": "सहायक लेख, वीडियो और गाइड तक पहुंचें",
+      "dashboard.resourcesCta": "संसाधन खोजें",
       "dashboard.booking": "एक काउंसलर बुक करें",
       "dashboard.bookingDesc": "एक पेशेवर काउंसलर के साथ सत्र शेड्यूल करें",
+      "dashboard.bookingCta": "अभी बुक करें",
       
       // Crisis support
       "crisis.needHelp": "तत्काल सहायता चाहिए?",
@@ -148,12 +154,15 @@ const resources = {
       "dashboard.howFeeling": "आज तुम कैसा महसूस कर रहे हो?",
       "dashboard.aiChat": "एआई प्राथमिक सहायता चैट",
       "dashboard.aiChatDesc": "हमारी निर्देशित चैट के माध्यम से तत्काल सहायता प्राप्त करें",
+      "dashboard.aiChatCta": "चैट शुरू करो",
       "dashboard.assessment": "मानसिक स्वास्थ्य मूल्यांकन",
       "dashboard.assessmentDesc": "अपनी मानसिक स्थिति को समझने के लिए एक त्वरित मूल्यांकन लें",
       "dashboard.resources": "मानसिक स्वास्थ्य संसाधन",
       "dashboard.resourcesDesc": "सहायक लेख, वीडियो और गाइड तक पहुंचें",
+      "dashboard.resourcesCta": "संसाधन खोजें",
       "dashboard.booking": "एक काउंसलर बुक करें",
       "dashboard.bookingDesc": "एक पेशेवर काउंसलर के साथ सत्र शेड्यूल करें",
+      "dashboard.bookingCta": "अभी बुक करो",
       
       // Crisis support
       "crisis.needHelp": "तत्काल सहायता चाहिए?",
@@ -213,12 +222,15 @@ const resources = {
       "dashboard.howFeeling": "अज्ज तुसीं कियां महसूस करा दे ओ?",
       "dashboard.aiChat": "एआई प्राथमिक सहायता चैट",
       "dashboard.aiChatDesc": "साडी निर्देशित चैट दे जरिए तुरंत सहायता हासिल करो",
+      "dashboard.aiChatCta": "चैट शुरू करो",
       "dashboard.assessment": "मानसिक स्वास्थ्य मूल्यांकन",
       "dashboard.assessmentDesc": "अपनी मानसिक स्थिति गी समझने आस्तै इक त्वरित मूल्यांकन लो",
       "dashboard.resources": "मानसिक स्वास्थ्य संसाधन",
       "dashboard.resourcesDesc": "सहायक लेख, वीडियो ते गाइड तगर पुज्जो",
+      "dashboard.resourcesCta": "संसाधन तलाश करो",
       "dashboard.booking": "इक काउंसलर बुक करो",
       "dashboard.bookingDesc": "इक पेशेवर काउंसलर कन्नै सत्र शेड्यूल करो",
+      "dashboard.bookingCta": "अज्जै बुक करो",
       
       // Crisis support
       "crisis.needHelp": "तुरंत सहायता चाहिदी ऐ?",
@@ -277,3 +289,4 @@ i18n
   });
 
 export default i18n;
+

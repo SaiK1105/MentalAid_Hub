@@ -55,6 +55,7 @@ const Dashboard = () => {
       icon: MessageSquare,
       color: "from-primary to-primary-glow",
       path: "/ai-chat",
+      ctaKey: "dashboard.aiChatCta",
       urgent: false
     },
     {
@@ -64,6 +65,7 @@ const Dashboard = () => {
       icon: ClipboardCheck,
       color: "from-secondary to-primary",
       path: "/assessment",
+      ctaKey: "assessment.start",
       urgent: false
     },
     {
@@ -73,6 +75,7 @@ const Dashboard = () => {
       icon: BookOpen,
       color: "from-accent to-secondary",
       path: "/resources",
+      ctaKey: "dashboard.resourcesCta",
       urgent: false
     },
     {
@@ -82,6 +85,7 @@ const Dashboard = () => {
       icon: Calendar,
       color: "from-secondary to-accent",
       path: "/booking",
+      ctaKey: "dashboard.bookingCta",
       urgent: false
     }
   ];
@@ -181,7 +185,7 @@ const Dashboard = () => {
                     variant="ghost" 
                     className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-all"
                   >
-                    {t('assessment.start')} →
+                    {t(feature.ctaKey)} →
                   </Button>
                 </CardContent>
               </Card>
