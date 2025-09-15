@@ -121,7 +121,7 @@ const Auth = () => {
             </div>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Mental Health Support</h1>
+            <h1 className="text-2xl font-bold text-foreground">MindAid Hub</h1>
             <p className="text-muted-foreground">Your journey to wellness starts here</p>
           </div>
           <LanguageSelector variant="compact" className="justify-center" />

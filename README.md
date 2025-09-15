@@ -1,6 +1,6 @@
-# Mental Aid Hub
+# MindAid Hub
 
-> Mental Aid Hub is a modern, comprehensive web application that provides confidential and accessible mental health support. It includes self-assessments, an AI mental-health chat, curated resources, and a counsellor booking flow.
+> MindAid Hub is a modern, comprehensive web application that provides confidential and accessible mental health support. It includes self-assessments, an AI mental-health chat, curated resources, and a counsellor booking flow.
 
 ## Features
 - **Secure Authentication** — Email/password auth powered by Supabase with protected routes for sensitive pages.

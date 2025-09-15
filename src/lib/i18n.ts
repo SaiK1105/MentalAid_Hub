@@ -6,7 +6,7 @@ const resources = {
   en: {
     translation: {
       // Welcome screen
-      "welcome.title": "Welcome to MindCare",
+      "welcome.title": "Welcome to MindAid Hub",
       "welcome.subtitle": "Your mental health companion",
       "welcome.selectLanguage": "Select your preferred language",
       "welcome.anonymousMode": "Anonymous mode",
@@ -71,7 +71,7 @@ const resources = {
   hi: {
     translation: {
       // Welcome screen
-      "welcome.title": "मानसिक स्वास्थ्य देखभाल में आपका स्वागत है",
+      "welcome.title": "माइंडएड हब में आपका स्वागत है",
       "welcome.subtitle": "आपका मानसिक स्वास्थ्य साथी",
       "welcome.selectLanguage": "अपनी पसंदीदा भाषा चुनें",
       "welcome.anonymousMode": "गुमनाम मोड",
@@ -136,7 +136,7 @@ const resources = {
   ks: {
     translation: {
       // Welcome screen (Kashmiri - using Devanagari script)
-      "welcome.title": "मानसिक स्वास्थ्य देखभाल में आपका स्वागत है",
+      "welcome.title": "माइंडएड हबस manz स्वागत",
       "welcome.subtitle": "तुम्हार मानसिक स्वास्थ्य साथी",
       "welcome.selectLanguage": "अपनी पसंदीदा भाषा चुनें",
       "welcome.anonymousMode": "गुमनाम मोड",
@@ -201,7 +201,7 @@ const resources = {
   dgo: {
     translation: {
       // Welcome screen (Dogri)
-      "welcome.title": "मानसिक स्वास्थ्य देखभाल में तुसां दा स्वागत ऐ",
+      "welcome.title": "माइंडएड हब च तुसां दा स्वागत ऐ",
       "welcome.subtitle": "तुसां दा मानसिक स्वास्थ्य साथी",
       "welcome.selectLanguage": "अपनी पसंदीदा भाषा चुनो",
       "welcome.anonymousMode": "गुमनाम मोड",
