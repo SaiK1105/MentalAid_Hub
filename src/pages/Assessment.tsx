@@ -8,8 +8,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { ClipboardCheck, Home, AlertTriangle, CheckCircle, Heart } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface Question {
@@ -175,45 +175,59 @@ const Assessment = () => {
   };
 
   const calculateResults = async () => {
-    setLoading(true);
+    if (!user) {
+      toast({
+        title: "Authentication Error",
+        description: "You need to be logged in to save your results.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const questions = getCurrentQuestions();
-    const testType = currentTest as 'phq9' | 'gad7';
-    
-    const relevantAnswers: Record<string, number> = {};
     const score = questions.reduce((total, question) => {
-      const answer = answers[question.id] || 0;
-      relevantAnswers[question.id] = answer;
-      return total + answer;
+      return total + (answers[question.id] || 0);
     }, 0);
+
+    const severity = getSeverityLevel(score, currentTest as "phq9" | "gad7").level;
+
+    const assessmentData = {
+      user_id: user.id,
+      type: currentTest,
+      score: score,
+      severity_level: severity,
+      responses: answers,
+    };
+
+    const { error } = await supabase.from('assessments').insert([assessmentData]);
+
+    if (error) {
+      console.error("Error saving assessment:", error);
+      toast({
+        title: "Save Failed",
+        description: `Could not save ${currentTest.toUpperCase()} results. Please try again.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     setTestResults(prev => ({
       ...prev,
-      [testType]: score
+      [currentTest]: score
     }));
-
-    await saveAssessmentResults(testType, score, relevantAnswers);
-
-    if (testType === "phq9" && !testResults.gad7) {
-      setCurrentTest("gad7");
-      setCurrentQuestion(0);
-    } else {
-      setCurrentTest("results");
-    }
-    setLoading(false);
+    setCurrentTest("results");
   };
 
+  // Recommendations logic for results page
   const getRecommendations = () => {
-    const phq9Score = testResults.phq9 || 0;
-    const gad7Score = testResults.gad7 || 0;
-    const highRisk = phq9Score >= 15 || gad7Score >= 15;
-
-    if (highRisk) {
+    const phq9Score = testResults.phq9 ?? 0;
+    const gad7Score = testResults.gad7 ?? 0;
+    if (phq9Score >= 20 || gad7Score >= 15) {
       return {
         urgent: true,
-        title: "Seek Professional Support",
-        description: "Your scores suggest you may benefit from professional help. Please consider booking a session with a counsellor.",
+        title: "Immediate Support Recommended",
+        description: "Your scores indicate severe symptoms. Please consider reaching out for urgent support.",
         actions: [
-          { label: "Book Counsellor Session", action: () => navigate("/booking"), variant: "destructive" },
           { label: "AI Crisis Support", action: () => navigate("/ai-chat?urgent=true"), variant: "outline" }
         ]
       };
@@ -474,3 +488,4 @@ const Assessment = () => {
 };
 
 export default Assessment;
+

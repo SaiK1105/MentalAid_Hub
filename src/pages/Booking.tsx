@@ -15,33 +15,23 @@ import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
 
-interface Counsellor {
-  id: string;
-  name: string;
-  title: string;
-  specializations: string[];
-  rating: number;
-  experience: number;
-  languages: string[];
-  availability: any;
-  session_types: ("video" | "phone" | "in-person")[];
-  bio: string;
-}
+type Counsellor = Database['public']['Tables']['counsellors']['Row'];
 
 const Booking = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
+
   const [step, setStep] = useState<"select-counsellor" | "select-time" | "details" | "confirmation">("select-counsellor");
+  const [loading, setLoading] = useState(true);
+  const [counsellors, setCounsellors] = useState<Counsellor[]>([]);
   const [selectedCounsellor, setSelectedCounsellor] = useState<Counsellor | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState("");
   const [sessionType, setSessionType] = useState<"video" | "phone" | "in-person">("video");
-  const [counsellors, setCounsellors] = useState<Counsellor[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const [bookingDetails, setBookingDetails] = useState({
     name: "",
     email: "",
@@ -59,15 +49,7 @@ const Booking = () => {
         toast({ title: "Error", description: "Could not fetch counsellors.", variant: "destructive" });
         setCounsellors([]); // Set to empty array on error
       } else {
-        setCounsellors(
-          (data || []).map((c) => ({
-            ...c,
-            session_types: (c.session_types as string[]).filter(
-              (type): type is "video" | "phone" | "in-person" =>
-                type === "video" || type === "phone" || type === "in-person"
-            ),
-          }))
-        ); // Ensure session_types is correctly typed
+        setCounsellors(data || []); // Handle null case by setting to an empty array
       }
       setLoading(false);
     };
@@ -75,60 +57,77 @@ const Booking = () => {
     fetchCounsellors();
   }, [toast]);
 
-
   const timeSlots = [
     "09:00 AM", "10:00 AM", "11:00 AM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM"
   ];
 
-  const getSessionIcon = (type: "video" | "phone" | "in-person") => {
+  const getSessionIcon = (type: string) => {
     switch (type) {
       case "video": return Video;
       case "phone": return Phone;
       case "in-person": return MapPin;
+      default: return Video;
     }
   };
-  
-  const formatTimeTo24h = (time12h: string) => {
-    if (!time12h) return "00:00:00";
+
+  // Helper function to convert 12-hour AM/PM time to 24-hour format for the database
+  const formatTimeForDB = (time12h: string) => {
     const [time, modifier] = time12h.split(' ');
     let [hours, minutes] = time.split(':');
+
     if (hours === '12') {
-        hours = '00';
+      hours = '00';
     }
     if (modifier === 'PM') {
-        hours = (parseInt(hours, 10) + 12).toString().padStart(2, '0');
+      hours = (parseInt(hours, 10) + 12).toString();
     }
-    return `${hours.padStart(2, '0')}:${minutes}:00`;
+    return `${hours}:${minutes}:00`;
   };
 
   const handleBooking = async () => {
     if (!user || !selectedCounsellor || !selectedDate || !selectedTime) {
-        toast({ title: "Missing Information", description: "Please complete all steps before confirming.", variant: "destructive"});
-        return;
+      toast({ title: "Missing Information", description: "Please complete all steps.", variant: "destructive" });
+      return;
     }
 
-    setLoading(true);
-
-    const { error } = await supabase.from('bookings').insert({
-        user_id: user.id,
-        counsellor_id: selectedCounsellor.id,
-        session_type: sessionType,
-        session_date: format(selectedDate, "yyyy-MM-dd"),
-        session_time: formatTimeTo24h(selectedTime),
-        user_name: bookingDetails.name || 'Anonymous',
-        user_email: bookingDetails.email,
-        user_phone: bookingDetails.phone,
-        concerns: bookingDetails.concerns,
-        status: 'confirmed'
-    });
-
-    setLoading(false);
+    const bookingData = {
+      user_id: user.id,
+      counsellor_id: selectedCounsellor.id,
+      session_type: sessionType,
+      session_date: format(selectedDate, "yyyy-MM-dd"),
+      session_time: formatTimeForDB(selectedTime),
+      user_name: bookingDetails.name || 'Anonymous',
+      user_email: bookingDetails.email,
+      user_phone: bookingDetails.phone || null,
+      concerns: bookingDetails.concerns || null,
+      status: 'confirmed',
+    };
+    
+    const { error } = await supabase.from('bookings').insert(bookingData);
 
     if (error) {
         console.error("Error creating booking:", error);
         toast({ title: "Booking Failed", description: error.message, variant: "destructive" });
     } else {
         setStep("confirmation");
+        
+        console.log("Invoking booking confirmation function...");
+        // Trigger the email notification function after successful booking
+        const { error: funcError } = await supabase.functions.invoke("send-booking-confirmation", {
+          body: {
+            bookingDetails: {
+              email: bookingDetails.email,
+              userName: bookingDetails.name || 'Anonymous',
+              counsellorName: selectedCounsellor.name,
+              date: format(selectedDate, "PPP"),
+              time: selectedTime,
+            },
+          },
+        });
+
+        if (funcError) {
+          console.error("Error invoking booking confirmation function:", funcError);
+        }
     }
   };
 
@@ -258,74 +257,79 @@ const Booking = () => {
         {/* Step Content */}
         {step === "select-counsellor" && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {loading ? Array.from({ length: 3 }).map((_, i) => <Card key={i} className="animate-pulse h-96 bg-muted"></Card>) 
-            : counsellors.map((counsellor) => (
-              <Card 
-                key={counsellor.id}
-                className={`cursor-pointer transition-all duration-300 hover:shadow-card ${
-                  selectedCounsellor?.id === counsellor.id ? "ring-2 ring-primary" : ""
-                }`}
-                onClick={() => setSelectedCounsellor(counsellor)}
-              >
-                <CardHeader className="space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="bg-gradient-to-r from-primary to-secondary p-3 rounded-xl">
-                      <User className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 fill-warning text-warning" />
-                      <span className="text-sm font-medium">{counsellor.rating}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg">{counsellor.name}</CardTitle>
-                    <CardDescription className="text-sm">{counsellor.title}</CardDescription>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium">Specializations</Label>
-                    <div className="flex flex-wrap gap-1">
-                      {counsellor.specializations.slice(0, 3).map((spec) => (
-                        <Badge key={spec} variant="secondary" className="text-xs">
-                          {spec}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <Label className="text-xs font-medium">Experience</Label>
-                      <p className="text-muted-foreground">{counsellor.experience} years</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs font-medium">Languages</Label>
-                      <p className="text-muted-foreground">{counsellor.languages.join(", ")}</p>
-                    </div>
-                  </div>
+            {loading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                    <Card key={i}><CardContent className="p-6 h-64 animate-pulse bg-muted/50"></CardContent></Card>
+                ))
+            ) : (
+                counsellors.map((counsellor) => (
+                    <Card 
+                        key={counsellor.id}
+                        className={`cursor-pointer transition-all duration-300 hover:shadow-card ${
+                        selectedCounsellor?.id === counsellor.id ? "ring-2 ring-primary" : ""
+                        }`}
+                        onClick={() => setSelectedCounsellor(counsellor)}
+                    >
+                        <CardHeader className="space-y-3">
+                        <div className="flex items-start justify-between">
+                            <div className="bg-gradient-to-r from-primary to-secondary p-3 rounded-xl">
+                            <User className="w-6 h-6 text-white" />
+                            </div>
+                            <div className="flex items-center gap-1">
+                            <Star className="w-4 h-4 fill-warning text-warning" />
+                            <span className="text-sm font-medium">{counsellor.rating}</span>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <CardTitle className="text-lg">{counsellor.name}</CardTitle>
+                            <CardDescription className="text-sm">{counsellor.title}</CardDescription>
+                        </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label className="text-xs font-medium">Specializations</Label>
+                            <div className="flex flex-wrap gap-1">
+                            {counsellor.specializations?.slice(0, 3).map((spec) => (
+                                <Badge key={spec} variant="secondary" className="text-xs">
+                                {spec}
+                                </Badge>
+                            ))}
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                            <Label className="text-xs font-medium">Experience</Label>
+                            <p className="text-muted-foreground">{counsellor.experience} years</p>
+                            </div>
+                            <div>
+                            <Label className="text-xs font-medium">Languages</Label>
+                            <p className="text-muted-foreground">{counsellor.languages?.join(", ")}</p>
+                            </div>
+                        </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium">Session Types</Label>
-                    <div className="flex gap-1">
-                      {counsellor.session_types?.map((type) => {
-                        const IconComponent = getSessionIcon(type);
-                        return (
-                          <Badge key={type} variant="outline" className="text-xs">
-                            <IconComponent className="w-3 h-3 mr-1" />
-                            {type}
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  </div>
+                        <div className="space-y-2">
+                            <Label className="text-xs font-medium">Session Types</Label>
+                            <div className="flex gap-1">
+                            {counsellor.session_types?.map((type) => {
+                                const IconComponent = getSessionIcon(type);
+                                return (
+                                <Badge key={type} variant="outline" className="text-xs">
+                                    <IconComponent className="w-3 h-3 mr-1" />
+                                    {type}
+                                </Badge>
+                                );
+                            })}
+                            </div>
+                        </div>
 
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {counsellor.bio}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                            {counsellor.bio}
+                        </p>
+                        </CardContent>
+                    </Card>
+                ))
+            )}
           </div>
         )}
 
@@ -361,7 +365,7 @@ const Booking = () => {
                         <Button
                           key={type}
                           variant={sessionType === type ? "default" : "outline"}
-                          onClick={() => setSessionType(type)}
+                          onClick={() => setSessionType(type as "video" | "phone" | "in-person")}
                           className="justify-start h-auto p-4"
                         >
                           <IconComponent className="w-5 h-5 mr-3" />
@@ -428,7 +432,7 @@ const Booking = () => {
                     id="name"
                     value={bookingDetails.name}
                     onChange={(e) => setBookingDetails(prev => ({...prev, name: e.target.value}))}
-                    placeholder="Can remain anonymous"
+                    placeholder={"Can remain anonymous"}
                   />
                 </div>
                 <div className="space-y-2">
@@ -496,7 +500,7 @@ const Booking = () => {
                   if (step === "select-time") setStep("select-counsellor");
                   else if (step === "details") setStep("select-time");
                 }}
-                disabled={step === "select-counsellor" || loading}
+                disabled={step === "select-counsellor"}
               >
                 Previous
               </Button>
@@ -510,12 +514,11 @@ const Booking = () => {
                 disabled={
                   (step === "select-counsellor" && !selectedCounsellor) ||
                   (step === "select-time" && (!selectedDate || !selectedTime)) ||
-                  (step === "details" && !bookingDetails.email) ||
-                  loading
+                  (step === "details" && !bookingDetails.email)
                 }
                 className="bg-gradient-to-r from-primary to-secondary"
               >
-                {loading ? "Processing..." : (step === "details" ? "Confirm Booking" : "Next")}
+                {step === "details" ? "Confirm Booking" : "Next"}
               </Button>
             </div>
           </CardContent>
@@ -526,7 +529,3 @@ const Booking = () => {
 };
 
 export default Booking;
-
-
-
-

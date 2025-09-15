@@ -29,10 +29,11 @@ const Resources = () => {
     {
       id: "1",
       title: "Coping with Anxiety",
-      description: "A comprehensive article from the Anxiety & Depression Association of America on understanding and managing anxiety.",
-      type: "article",
+      description: "A video introduction for coping with anxiety.This talk was given at a TEDx event.",
+      type: "video",
       category: "anxiety",
-      url: "https://adaa.org/learn-from-us/from-the-experts/blog-posts/consumer/coping-anxiety",
+      duration: "15 min",
+      url: "https://www.youtube.com/watch?v=WWloIAQpMcQ",
       language: "English"
     },
     {
@@ -41,8 +42,8 @@ const Resources = () => {
       description: "A 10-minute guided audio meditation to help you calm your mind and reduce stress.",
       type: "audio",
       category: "stress",
-      duration: "10 min",
-      url: "https://www.calm.com/breathe",
+      duration: "7 min",
+      url: "https://open.spotify.com/track/2o8lJuTKmwm7TqZP7w1rD8",
       language: "English"
     },
     {
@@ -70,16 +71,17 @@ const Resources = () => {
       description: "A collection of printable worksheets and handouts from the Centre for Clinical Interventions (CCI) to help with various coping strategies.",
       type: "pdf",
       category: "coping",
-      url: "https://www.cci.health.wa.gov.au/Resources/Looking-After-Yourself/Coping-Skills",
+      url: "https://drive.google.com/file/d/1g-e8o-sYRehseIB0aDMOJiPfjeNbUuN6/view?usp=sharing",
       language: "English"
     },
     {
       id: "6",
       title: "5 Tips to Manage Stress",
-      description: "A quick read from the National Institute of Mental Health (NIMH) with practical advice for managing everyday stress.",
-      type: "article",
+      description: "A quick short from the Solace ASIA with practical advice for managing everyday stress.",
+      type: "video",
       category: "stress",
-      url: "https://www.nimh.nih.gov/health/publications/stress-and-mental-health",
+      duration: "40 sec",
+      url: "https://www.youtube.com/shorts/nuc61QnJrfM",
       language: "English"
     },
     {
@@ -88,17 +90,17 @@ const Resources = () => {
       description: "A helpful video from a licensed therapist on how to process and manage overwhelming feelings.",
       type: "video",
       category: "coping",
-      duration: "12 min",
-      url: "https://www.youtube.com/watch?v=i90Uf19R2Yw",
+      duration: "3.13 min",
+      url: "https://www.youtube.com/watch?v=nX4dpGQ5wF4&rco=1",
       language: "English"
     },
     {
       id: "8",
       title: "Depression and Sleep: A Guide",
-      description: "A PDF guide from Psychology Tools explaining the link between depression and sleep, with practical tips to improve sleep hygiene.",
-      type: "pdf",
+      description: "A Article guide from Psychology Tools explaining the link between depression and sleep, with practical tips to improve sleep hygiene.",
+      type: "article",
       category: "depression",
-      url: "https://psychology.tools/download/sleep-hygiene-for-depression.pdf",
+      url: "https://www.hopkinsmedicine.org/health/wellness-and-prevention/depression-and-sleep-understanding-the-connection",
       language: "English"
     },
     {
@@ -107,7 +109,7 @@ const Resources = () => {
       description: "Information and contact numbers for immediate crisis support and emergency services.",
       type: "article",
       category: "crisis",
-      url: "https://www.nami.org/help",
+      url: "https://v2.india.gov.in/directory/helpline",
       language: "English"
     },
     {
@@ -117,7 +119,7 @@ const Resources = () => {
       type: "video",
       category: "anxiety",
       duration: "7 min",
-      url: "https://www.youtube.com/watch?v=O1fN93d0_o4",
+      url: "https://youtu.be/6p_yaNFSYao?si=oIjli64yh4-HHjAy",
       language: "English"
     }
   ];
