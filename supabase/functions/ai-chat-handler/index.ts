@@ -1,10 +1,19 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// index.ts
+
+// If running in Deno, ensure you use the Deno CLI to execute this file.
+// If you want to run in Node.js, replace the following line with:
+// import { createServer } from "http";
+// and adjust the rest of the code accordingly.
+// If using Deno, uncomment the following line:
+// import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// If using Node.js, use the following imports:
+import { createServer } from "http";
 import { corsHeaders } from "../_shared/cors.ts";
 
-// This Edge Function includes a risk-scoring layer to detect high-risk user input
-// and trigger an escalation flow when necessary.
+// --- SAFETY LAYER (UNCHANGED) ---
+// This critical safety layer remains in the Edge Function to provide an
+// immediate response for high-risk input without calling the backend.
 
-// Define high-risk keywords with associated risk scores.
 const riskKeywords: { [key: string]: number } = {
   "want to die": 10,
   "kill myself": 10,
@@ -33,97 +42,93 @@ const calculateRiskScore = (message: string): number => {
   }
   return score;
 };
-
-// Function to determine the general risk category for AI prompting
-const assessRisk = (message: string): "low" | "medium" | "high" => {
-    const lowerMessage = message.toLowerCase();
-    const highRisk = ["suicide", "kill myself", "end it all", "hurt myself"];
-    const mediumRisk = ["depressed", "anxious", "panic", "can't cope"];
-    if (highRisk.some(kw => lowerMessage.includes(kw))) return "high";
-    if (mediumRisk.some(kw => lowerMessage.includes(kw))) return "medium";
-    return "low";
-};
-
-serve(async (req) => {
+createServer(async (req, res) => {
   console.log("ai-chat-handler function invoked.");
 
+  // Standard CORS preflight request handling
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    res.writeHead(200, corsHeaders);
+    res.end("ok");
+    return;
   }
 
   try {
-    const { userMessage } = await req.json();
-    const riskScore = calculateRiskScore(userMessage);
-    console.log(`Calculated risk score: ${riskScore}`);
-
-    if (riskScore > RISK_THRESHOLD) {
-      console.warn(`High-risk message detected. Score: ${riskScore}. Escalating.`);
-      // If risk is high, immediately return the crisis message.
-      return new Response(JSON.stringify({
-        content: "I am concerned by what you've shared. It sounds like you are in immediate distress, and it's important to reach out for help right now. Please call a crisis hotline like 1075 immediately. You are not alone and help is available.",
-        escalate: true,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    }
-
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!apiKey) throw new Error("GEMINI_API_KEY is not set.");
-
-    // Corrected system prompts object
-    const systemPrompts = {
-      high: "You are a crisis support assistant. The user is in significant distress. Your primary goal is to guide them to professional help immediately. Respond with empathy and provide clear, direct instructions to contact emergency services like the 1075 crisis line in India.",
-      medium: "You are a supportive mental health companion. The user is feeling anxious or depressed. Provide gentle, evidence-based coping strategies, such as grounding techniques or simple breathing exercises, and offer emotional validation.",
-      low: "You are a friendly and supportive chatbot. The user is dealing with general stress or worries. Offer a listening ear, validate their feelings, and ask open-ended questions to help them explore their thoughts."
-    };
-
-    // Determine the risk level to select the appropriate system prompt
-    const risk = assessRisk(userMessage);
-
-    const payload = {
-      contents: [{
-        parts: [{
-          text: `${systemPrompts[risk]}\n\nUser message: ${userMessage}\n\nRespond with empathy and appropriate guidance.`
-        }]
-      }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 200,
-      }
-    };
-
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-    const geminiResponse = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
     });
+    req.on('end', async () => {
+      const { userMessage } = JSON.parse(body);
 
-    if (!geminiResponse.ok) throw new Error(`Gemini API Error: ${geminiResponse.statusText}`);
+      // 1. Calculate risk score based on the user's message
+      const riskScore = calculateRiskScore(userMessage);
+      console.log(`Calculated risk score: ${riskScore}`);
 
-    const data = await geminiResponse.json();
-    const aiContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      // 2. If risk is high, escalate immediately and DO NOT call the backend.
+      if (riskScore > RISK_THRESHOLD) {
+        console.warn(`High-risk message detected. Score: ${riskScore}. Escalating.`);
+        res.writeHead(200, { ...corsHeaders, "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          content: "I am concerned by what you've shared. It sounds like you are in immediate distress, and it's important to reach out for help right now. Please call a crisis hotline like 1075 immediately. You are not alone and help is available.",
+          escalate: true,
+        }));
+        return;
+      }
 
-    if (!aiContent) {
-      console.warn("No content returned from Gemini API, possibly due to a safety block.");
-      return new Response(JSON.stringify({ content: "I'm sorry, I'm unable to respond to that topic right now. Let's talk about something else." }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
+      // 3. --- MODIFIED SECTION ---
+      // If risk is not critical, call your Python backend API.
+      
+      // Define the URL of your deployed Python API
+      const pythonBackendUrl = 'https://s4ik-mental-health-hub.hf.space/chat';
+
+      // Prepare the payload for your Python API
+      const payload = {
+        user_message: userMessage,
+        // You can add phq_score and gad_score here if you collect them in your frontend
+        // phq_score: 0, 
+        // gad_score: 0,
+      };
+
+      console.log("Forwarding request to Python backend API.");
+
+      // Call your Python backend using fetch
+      const fetch = (await import('node-fetch')).default;
+      const backendResponse = await fetch(pythonBackendUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
-    }
 
-    return new Response(JSON.stringify({ content: aiContent, escalate: false }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
+      if (!backendResponse.ok) {
+        throw new Error(`Python Backend API Error: ${backendResponse.statusText}`);
+      }
+
+      const data = await backendResponse.json() as { reply?: string };
+      // Your Python API returns a JSON object with a "reply" key
+      const aiContent = data.reply; 
+
+      // Handle cases where the backend might not return content
+      if (!aiContent) {
+        console.warn("No content returned from Python backend.");
+        res.writeHead(200, { ...corsHeaders, "Content-Type": "application/json" });
+        res.end(JSON.stringify({ content: "I'm sorry, I'm unable to respond to that topic right now. Let's talk about something else." }));
+        return;
+      }
+
+      // 4. Return the response from your backend to the client
+      res.writeHead(200, { ...corsHeaders, "Content-Type": "application/json" });
+      res.end(JSON.stringify({ content: aiContent, escalate: false }));
     });
 
   } catch (error) {
-    console.error('Error in AI Chat Edge Function:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    let errorMessage = "An unknown error occurred";
+    if (error instanceof Error) {
+      console.error('Error in AI Chat Edge Function:', error.message);
+      errorMessage = error.message;
+    } else {
+      console.error('Error in AI Chat Edge Function:', error);
+    }
+    res.writeHead(500, { ...corsHeaders, "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: errorMessage }));
   }
-});
-
+}).listen(8000);
