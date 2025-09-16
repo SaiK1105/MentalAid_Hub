@@ -197,9 +197,9 @@ const Assessment = () => {
       severity_level: severity,
       responses: answers,
     };
-
+    setLoading(true);
     const { error } = await supabase.from('assessments').insert([assessmentData]);
-
+    setLoading(false);
     if (error) {
       console.error("Error saving assessment:", error);
       toast({
@@ -487,4 +487,3 @@ const Assessment = () => {
 };
 
 export default Assessment;
-

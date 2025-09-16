@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { MessageSquare, Send, Bot, User, AlertTriangle, Home } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -23,6 +23,10 @@ const AIChat = () => {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const isUrgent = searchParams.get("urgent") === "true";
+
+  const location = useLocation();
+  const phq9Score = location.state?.phq9Score;
+  const gad7Score = location.state?.gad7Score;
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isCrisis, setIsCrisis] = useState(isUrgent);
@@ -42,7 +46,6 @@ const AIChat = () => {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Effect to create a new chat session when the component loads and the user is available.
   useEffect(() => {
     const createSession = async () => {
       if (user && !sessionId) {
@@ -65,14 +68,16 @@ const AIChat = () => {
 
   const getAIResponse = async (userMessage: string) => {
     try {
-      // Invoke the Edge Function, which now handles risk scoring and the Gemini API call.
       const { data, error } = await supabase.functions.invoke("ai-chat-handler", {
-        body: { userMessage },
+        body: { 
+          userMessage,
+          phqScore: phq9Score,
+          gadScore: gad7Score,
+        },
       });
 
       if (error) throw error;
       
-      // The function now returns an object with 'content' and an 'escalate' flag.
       if (data.escalate) {
         setIsCrisis(true);
       }
@@ -89,42 +94,21 @@ const AIChat = () => {
     if (!inputMessage.trim() || !sessionId) return;
 
     const userMessageContent = inputMessage;
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content: userMessageContent,
-      sender: "user",
-      timestamp: new Date()
-    };
+    const userMessage: Message = { id: Date.now().toString(), content: userMessageContent, sender: "user", timestamp: new Date() };
 
     setMessages(prev => [...prev, userMessage]);
     setInputMessage("");
     setIsTyping(true);
 
-    // Save user message to the database
-    await supabase.from("chat_messages").insert({
-        session_id: sessionId,
-        content: userMessageContent,
-        sender: 'user',
-    });
+    await supabase.from("chat_messages").insert({ session_id: sessionId, content: userMessageContent, sender: 'user' });
 
-    // Get AI response from our secure Edge Function
     const aiContent = await getAIResponse(userMessageContent);
-    const aiResponse: Message = {
-      id: (Date.now() + 1).toString(),
-      content: aiContent,
-      sender: "ai",
-      timestamp: new Date(),
-    };
+    const aiResponse: Message = { id: (Date.now() + 1).toString(), content: aiContent, sender: "ai", timestamp: new Date() };
 
     setMessages(prev => [...prev, aiResponse]);
     setIsTyping(false);
 
-    // Save AI response to the database
-    await supabase.from("chat_messages").insert({
-        session_id: sessionId,
-        content: aiContent,
-        sender: 'ai',
-    });
+    await supabase.from("chat_messages").insert({ session_id: sessionId, content: aiContent, sender: 'ai' });
   };
 
   const scrollToBottom = () => {
@@ -142,12 +126,7 @@ const AIChat = () => {
         <div className="max-w-4xl mx-auto p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate("/dashboard")}
-                className="p-2"
-              >
+              <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="p-2">
                 <Home className="w-4 h-4" />
               </Button>
               <div className="flex items-center gap-2">
@@ -167,13 +146,7 @@ const AIChat = () => {
               <AlertTriangle className="w-5 h-5" />
               <span className="font-medium">Crisis Support Active</span>
               <Separator orientation="vertical" className="h-4" />
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => window.open("tel:1075")}
-              >
-                Call 1075 Now
-              </Button>
+              <Button variant="destructive" size="sm" onClick={() => window.open("tel:1075")}>Call 1075 Now</Button>
             </div>
           </div>
         </div>
@@ -183,46 +156,26 @@ const AIChat = () => {
       <div className="max-w-4xl mx-auto p-4 pb-24">
         <div className="space-y-4">
           {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex gap-3 ${
-                message.sender === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
+            <div key={message.id} className={`flex gap-3 ${message.sender === "user" ? "justify-end" : "justify-start"}`}>
               {message.sender === "ai" && (
-                <div className="bg-primary p-2 rounded-full shadow-soft self-start">
-                  <Bot className="w-4 h-4 text-primary-foreground" />
-                </div>
+                <div className="bg-primary p-2 rounded-full shadow-soft self-start"><Bot className="w-4 h-4 text-primary-foreground" /></div>
               )}
-              
-              <Card className={`max-w-[80%] ${
-                message.sender === "user" 
-                  ? "bg-primary text-primary-foreground" 
-                  : "bg-card"
-              }`}>
+              <Card className={`max-w-[80%] ${message.sender === "user" ? "bg-primary text-primary-foreground" : "bg-card"}`}>
                 <CardContent className="p-4">
                   <p className="text-sm leading-relaxed">{message.content}</p>
                   <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs opacity-70">
-                      {message.timestamp.toLocaleTimeString()}
-                    </span>
+                    <span className="text-xs opacity-70">{message.timestamp.toLocaleTimeString()}</span>
                   </div>
                 </CardContent>
               </Card>
-
               {message.sender === "user" && (
-                <div className="bg-muted p-2 rounded-full self-start">
-                  <User className="w-4 h-4 text-muted-foreground" />
-                </div>
+                <div className="bg-muted p-2 rounded-full self-start"><User className="w-4 h-4 text-muted-foreground" /></div>
               )}
             </div>
           ))}
-
           {isTyping && (
             <div className="flex gap-3 justify-start">
-              <div className="bg-primary p-2 rounded-full shadow-soft">
-                <Bot className="w-4 h-4 text-primary-foreground" />
-              </div>
+              <div className="bg-primary p-2 rounded-full shadow-soft"><Bot className="w-4 h-4 text-primary-foreground" /></div>
               <Card className="bg-card">
                 <CardContent className="p-4">
                   <div className="flex gap-1">
@@ -234,7 +187,6 @@ const AIChat = () => {
               </Card>
             </div>
           )}
-          
           <div ref={messagesEndRef} />
         </div>
       </div>
@@ -251,11 +203,7 @@ const AIChat = () => {
               className="flex-1"
               disabled={isTyping || isCrisis}
             />
-            <Button
-              onClick={sendMessage}
-              disabled={!inputMessage.trim() || isTyping || isCrisis}
-              className="bg-gradient-to-r from-primary to-secondary"
-            >
+            <Button onClick={sendMessage} disabled={!inputMessage.trim() || isTyping || isCrisis} className="bg-gradient-to-r from-primary to-secondary">
               <Send className="w-4 h-4" />
             </Button>
           </div>
@@ -266,4 +214,3 @@ const AIChat = () => {
 };
 
 export default AIChat;
-

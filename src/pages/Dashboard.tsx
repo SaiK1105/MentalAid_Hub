@@ -5,7 +5,7 @@ import { useAuth } from "../hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { MessageSquare, ClipboardCheck, BookOpen, Calendar, Heart, Shield } from "lucide-react";
+import { MessageSquare, ClipboardCheck, BookOpen, Calendar, Heart, Shield, Loader2 } from "lucide-react";
 import LanguageSelector from "../components/LanguageSelector";
 import { supabase } from "../integrations/supabase/client";
 import { useToast } from "../hooks/use-toast";
@@ -21,6 +21,7 @@ const Dashboard = () => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [isCheckingAssessments, setIsCheckingAssessments] = useState(false);
 
   const [userPrefs] = useState(() => {
     const saved = localStorage.getItem("userPrefs");
@@ -55,7 +56,6 @@ const Dashboard = () => {
       description: t('dashboard.aiChatDesc'),
       icon: MessageSquare,
       color: "from-primary to-primary-glow",
-      path: "/ai-chat",
       ctaKey: "dashboard.aiChatCta",
       urgent: false
     },
@@ -90,6 +90,49 @@ const Dashboard = () => {
       urgent: false
     }
   ];
+
+  const handleAIChatClick = async () => {
+    if (!user) {
+      toast({ title: "Please sign in", description: "You need to be signed in to use the AI Chat.", variant: "default" });
+      return;
+    }
+    setIsCheckingAssessments(true);
+
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: recentAssessments, error } = await supabase
+      .from('assessments')
+      .select('type, score, created_at')
+      .eq('user_id', user.id)
+      .gte('created_at', fourteenDaysAgo)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching recent assessments:', error);
+      toast({ title: "Error", description: "Could not check for recent assessments. Please try again.", variant: "destructive" });
+      setIsCheckingAssessments(false);
+      return;
+    }
+
+    const latestPhq9 = recentAssessments.find(a => a.type === 'phq9');
+    const latestGad7 = recentAssessments.find(a => a.type === 'gad7');
+
+    if (latestPhq9 && latestGad7) {
+      // If both recent tests exist, go straight to chat with the latest scores
+      navigate('/ai-chat', {
+        state: {
+          phq9Score: latestPhq9.score,
+          gad7Score: latestGad7.score,
+        }
+      });
+    } else {
+      // Otherwise, start the assessment flow
+      navigate('/assessment?next=ai-chat');
+    }
+
+    setIsCheckingAssessments(false);
+  };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted p-4">
@@ -159,7 +202,13 @@ const Dashboard = () => {
               <Card 
                 key={feature.id}
                 className="group hover:shadow-card transition-all duration-300 cursor-pointer border-0 overflow-hidden"
-                onClick={() => navigate(feature.path)}
+                onClick={() => {
+                  if (feature.id === 'ai-chat') {
+                    handleAIChatClick();
+                  } else if (feature.path) {
+                    navigate(feature.path);
+                  }
+                }}
               >
                 <CardHeader className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -185,8 +234,18 @@ const Dashboard = () => {
                   <Button 
                     variant="ghost" 
                     className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-all"
+                    disabled={isCheckingAssessments && feature.id === 'ai-chat'}
                   >
-                    {t(feature.ctaKey)} →
+                    {isCheckingAssessments && feature.id === 'ai-chat' ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Checking...
+                      </>
+                    ) : (
+                      <>
+                        {t(feature.ctaKey)} →
+                      </>
+                    )}
                   </Button>
                 </CardContent>
               </Card>
