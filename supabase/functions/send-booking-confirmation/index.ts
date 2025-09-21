@@ -24,7 +24,7 @@ serve(async (req) => {
 
     // Example payload for Resend API
     const emailPayload = {
-      from: "MindAid Hub <noreply@yourdomain.com>",
+      from: "OpenWell <noreply@yourdomain.com>",
       to: [bookingDetails.email],
       subject: `Booking Confirmed: Your session with ${bookingDetails.counsellorName}`,
       html: `

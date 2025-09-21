@@ -6,7 +6,7 @@ const resources = {
   en: {
     translation: {
       // Welcome screen
-      "welcome.title": "Welcome to MindAid Hub",
+      "welcome.title": "Welcome to OpenWell",
       "welcome.subtitle": "Your mental health companion",
       "welcome.selectLanguage": "Select your preferred language",
       "welcome.anonymousMode": "Anonymous mode",
@@ -41,8 +41,7 @@ const resources = {
       
       // Assessment
       "assessment.title": "Mental Health Assessment",
-      "assessment.phq9": "Depression Screening (PHQ-9)",
-      "assessment.gad7": "Anxiety Screening (GAD-7)",
+      "assessment.dass21": "DASS-21 Questionnaire",
       "assessment.start": "Start Assessment",
       "assessment.submit": "Submit Assessment",
       
@@ -105,12 +104,8 @@ const resources = {
       "chat.title": "एआई मानसिक स्वास्थ्य सहायक",
       "chat.placeholder": "यहाँ अपना संदेश टाइप करें...",
       "chat.send": "भेजें",
-      "chat.welcome": "नमस्ते! मैं आपकी मानसिक स्वास्थ्य चिंताओं में मदद करने के लिए यहाँ हूँ। आज आप कैसा महसूस कर रहे हैं?",
-      
-      // Assessment
       "assessment.title": "मानसिक स्वास्थ्य मूल्यांकन",
-      "assessment.phq9": "अवसाद जांच (PHQ-9)",
-      "assessment.gad7": "चिंता जांच (GAD-7)",
+      "assessment.dass21": "DASS-21 प्रश्नावली",
       "assessment.start": "मूल्यांकन शुरू करें",
       "assessment.submit": "मूल्यांकन जमा करें",
       
@@ -177,8 +172,7 @@ const resources = {
       
       // Assessment
       "assessment.title": "मानसिक स्वास्थ्य मूल्यांकन",
-      "assessment.phq9": "अवसाद जांच (PHQ-9)",
-      "assessment.gad7": "चिंता जांच (GAD-7)",
+      "assessment.dass21": "DASS-21 प्रश्नावली",
       "assessment.start": "मूल्यांकन शुरू करें",
       "assessment.submit": "मूल्यांकन जमा करें",
       
@@ -245,8 +239,7 @@ const resources = {
       
       // Assessment
       "assessment.title": "मानसिक स्वास्थ्य मूल्यांकन",
-      "assessment.phq9": "अवसाद जांच (PHQ-9)",
-      "assessment.gad7": "चिंता जांच (GAD-7)",
+      "assessment.dass21": "DASS-21 प्रश्नावली",
       "assessment.start": "मूल्यांकन शुरू करो",
       "assessment.submit": "मूल्यांकन जमा करो",
       

@@ -16,6 +16,7 @@ interface Question {
   id: string;
   text: string;
   scale: string[];
+  category: "depression" | "anxiety" | "stress";
 }
 
 const Assessment = () => {
@@ -23,100 +24,40 @@ const Assessment = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [currentTest, setCurrentTest] = useState<"select" | "phq9" | "gad7" | "results">("select");
+  const [currentTest, setCurrentTest] = useState<"select" | "dass21" | "results">("select");
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [testResults, setTestResults] = useState<{ phq9?: number; gad7?: number }>({});
+  const [testResults, setTestResults] = useState<{
+    dass21?: { depression: number; anxiety: number; stress: number };
+  }>({});
   const [loading, setLoading] = useState(false);
 
-  const phq9Questions: Question[] = [
-    {
-      id: "phq9_1",
-      text: "Little interest or pleasure in doing things",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    },
-    {
-      id: "phq9_2", 
-      text: "Feeling down, depressed, or hopeless",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    },
-    {
-      id: "phq9_3",
-      text: "Trouble falling or staying asleep, or sleeping too much",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    },
-    {
-      id: "phq9_4",
-      text: "Feeling tired or having little energy",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    },
-    {
-      id: "phq9_5",
-      text: "Poor appetite or overeating",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    },
-    {
-      id: "phq9_6",
-      text: "Feeling bad about yourself or that you are a failure",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    },
-    {
-      id: "phq9_7",
-      text: "Trouble concentrating on things, such as reading or watching TV",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    },
-    {
-      id: "phq9_8",
-      text: "Moving or speaking slowly, or being fidgety or restless",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    },
-    {
-      id: "phq9_9",
-      text: "Thoughts that you would be better off dead or hurting yourself",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    }
-  ];
-
-  const gad7Questions: Question[] = [
-    {
-      id: "gad7_1",
-      text: "Feeling nervous, anxious, or on edge",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    },
-    {
-      id: "gad7_2",
-      text: "Not being able to stop or control worrying",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    },
-    {
-      id: "gad7_3",
-      text: "Worrying too much about different things",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    },
-    {
-      id: "gad7_4",
-      text: "Trouble relaxing",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    },
-    {
-      id: "gad7_5",
-      text: "Being so restless that it is hard to sit still",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    },
-    {
-      id: "gad7_6",
-      text: "Becoming easily annoyed or irritable",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    },
-    {
-      id: "gad7_7",
-      text: "Feeling afraid, as if something awful might happen",
-      scale: ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-    }
+  const dass21Questions: Question[] = [
+    { id: "dass21_1", text: "I found it hard to wind down.", category: "stress", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_2", text: "I was aware of dryness of my mouth.", category: "anxiety", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_3", text: "I couldn't seem to experience any positive feeling at all.", category: "depression", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_4", text: "I experienced breathing difficulty (e.g., excessively rapid breathing, breathlessness in the absence of physical exertion).", category: "anxiety", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_5", text: "I found it difficult to work up the initiative to do things.", category: "depression", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_6", text: "I tended to over-react to situations.", category: "stress", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_7", text: "I experienced trembling (e.g., in the hands).", category: "anxiety", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_8", text: "I felt that I was using a lot of nervous energy.", category: "stress", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_9", text: "I was worried about situations in which I might panic and make a fool of myself.", category: "anxiety", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_10", text: "I felt that I had nothing to look forward to.", category: "depression", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_11", text: "I found myself getting agitated.", category: "stress", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_12", text: "I found it difficult to relax.", category: "stress", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_13", text: "I felt down-hearted and blue.", category: "depression", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_14", text: "I was intolerant of anything that kept me from getting on with what I was doing.", category: "stress", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_15", text: "I felt I was close to panic.", category: "anxiety", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_16", text: "I was unable to become enthusiastic about anything.", category: "depression", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_17", text: "I felt I wasn't worth much as a person.", category: "depression", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_18", text: "I felt that I was rather touchy.", category: "stress", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_19", text: "I was aware of the action of my heart in the absence of physical exertion (e.g., sense of heart rate increase, heart missing a beat).", category: "anxiety", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_20", text: "I felt scared without any good reason.", category: "anxiety", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
+    { id: "dass21_21", text: "I felt that life was meaningless.", category: "depression", scale: ["Did not apply to me at all", "Applied to me to some degree", "Applied to me to a considerable degree", "Applied to me very much"] },
   ];
 
   const getCurrentQuestions = () => {
-    return currentTest === "phq9" ? phq9Questions : gad7Questions;
+    return dass21Questions;
   };
 
   const handleAnswer = (value: string) => {
@@ -124,39 +65,31 @@ const Assessment = () => {
     const questionId = questions[currentQuestion].id;
     setAnswers(prev => ({ ...prev, [questionId]: parseInt(value) }));
   };
-  
-  const getSeverityLevel = (score: number, type: "phq9" | "gad7") => {
-    if (type === "phq9") {
-      if (score <= 4) return { level: "minimal", color: "secondary" };
-      if (score <= 9) return { level: "mild", color: "outline" };
-      if (score <= 14) return { level: "moderate", color: "outline" };
-      if (score <= 19) return { level: "severe", color: "destructive" };
-      return { level: "severe", color: "destructive" };
-    } else { // gad7
-      if (score <= 4) return { level: "minimal", color: "secondary" };
-      if (score <= 9) return { level: "mild", color: "outline" };
-      if (score <= 14) return { level: "moderate", color: "outline" };
-      return { level: "severe", color: "destructive" };
+
+  const getSeverityLevel = (score: number, type: "depression" | "anxiety" | "stress") => {
+    switch (type) {
+      case "depression":
+        if (score <= 9) return { level: "Normal", color: "secondary" };
+        if (score <= 13) return { level: "Mild", color: "outline" };
+        if (score <= 20) return { level: "Moderate", color: "outline" };
+        if (score <= 27) return { level: "Severe", color: "destructive" };
+        return { level: "Extremely Severe", color: "destructive" };
+      case "anxiety":
+        if (score <= 7) return { level: "Normal", color: "secondary" };
+        if (score <= 9) return { level: "Mild", color: "outline" };
+        if (score <= 14) return { level: "Moderate", color: "outline" };
+        if (score <= 19) return { level: "Severe", color: "destructive" };
+        return { level: "Extremely Severe", color: "destructive" };
+      case "stress":
+        if (score <= 14) return { level: "Normal", color: "secondary" };
+        if (score <= 18) return { level: "Mild", color: "outline" };
+        if (score <= 25) return { level: "Moderate", color: "outline" };
+        if (score <= 33) return { level: "Severe", color: "destructive" };
+        return { level: "Extremely Severe", color: "destructive" };
+      default:
+        return { level: "Unknown", color: "secondary" };
     }
   };
-
-  const saveAssessmentResults = async (type: 'phq9' | 'gad7', score: number, responses: Record<string, number>) => {
-    if (!user) return;
-
-    const { error } = await supabase.from('assessments').insert({
-        user_id: user.id,
-        type: type,
-        score: score,
-        severity_level: getSeverityLevel(score, type).level,
-        responses: responses,
-    });
-
-    if (error) {
-        console.error(`Error saving ${type} assessment:`, error);
-        toast({ title: "Save Failed", description: `Could not save your ${type} results.`, variant: "destructive" });
-    }
-  };
-
 
   const nextQuestion = () => {
     const questions = getCurrentQuestions();
@@ -183,45 +116,62 @@ const Assessment = () => {
       return;
     }
 
-    const questions = getCurrentQuestions();
-    const score = questions.reduce((total, question) => {
-      return total + (answers[question.id] || 0);
-    }, 0);
+    let depressionScore = 0;
+    let anxietyScore = 0;
+    let stressScore = 0;
 
-    const severity = getSeverityLevel(score, currentTest as "phq9" | "gad7").level;
+    dass21Questions.forEach(q => {
+      const answer = answers[q.id] || 0;
+      if (q.category === "depression") depressionScore += answer;
+      else if (q.category === "anxiety") anxietyScore += answer;
+      else if (q.category === "stress") stressScore += answer;
+    });
+    
+    // DASS-21 scores are multiplied by 2
+    depressionScore *= 2;
+    anxietyScore *= 2;
+    stressScore *= 2;
 
-    const assessmentData = {
-      user_id: user.id,
-      type: currentTest,
-      score: score,
-      severity_level: severity,
-      responses: answers,
+    const results = {
+      depression: depressionScore,
+      anxiety: anxietyScore,
+      stress: stressScore,
     };
+
+    setTestResults({ dass21: results });
+
     setLoading(true);
-    const { error } = await supabase.from('assessments').insert([assessmentData]);
+    const { error } = await supabase.from('assessments').insert({
+      user_id: user.id,
+      type: 'DASS-21',
+      score: null, // Not storing a single score
+      severity_level: null, // Severity is per category
+      responses: answers,
+      dass21_scores: results,
+    });
     setLoading(false);
+
     if (error) {
       console.error("Error saving assessment:", error);
       toast({
         title: "Save Failed",
-        description: `Could not save ${currentTest.toUpperCase()} results. Please try again.`,
+        description: `Could not save DASS-21 results. Please try again.`,
         variant: "destructive",
       });
       return;
     }
 
-    setTestResults(prev => ({
-      ...prev,
-      [currentTest]: score
-    }));
     setCurrentTest("results");
   };
 
-  // Recommendations logic for results page
   const getRecommendations = () => {
-    const phq9Score = testResults.phq9 ?? 0;
-    const gad7Score = testResults.gad7 ?? 0;
-    if (phq9Score >= 20 || gad7Score >= 15) {
+    const scores = testResults.dass21;
+    if (!scores) return { urgent: false, title: "", description: "", actions: [] };
+
+    const isSevere = scores.depression > 20 || scores.anxiety > 14 || scores.stress > 25;
+    const isModerate = scores.depression > 13 || scores.anxiety > 9 || scores.stress > 18;
+
+    if (isSevere) {
       return {
         urgent: true,
         title: "Immediate Support Recommended",
@@ -230,7 +180,7 @@ const Assessment = () => {
           { label: "AI Crisis Support", action: () => navigate("/ai-chat?urgent=true"), variant: "outline" }
         ]
       };
-    } else if (phq9Score >= 10 || gad7Score >= 10) {
+    } else if (isModerate) {
       return {
         urgent: false,
         title: "Consider Additional Support",
@@ -257,14 +207,8 @@ const Assessment = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted p-4">
         <div className="max-w-2xl mx-auto space-y-6 py-6">
-          {/* Header */}
           <div className="flex items-center gap-3 mb-6">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/dashboard")}
-              className="p-2"
-            >
+            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="p-2">
               <Home className="w-4 h-4" />
             </Button>
             <div className="flex items-center gap-2">
@@ -277,41 +221,21 @@ const Assessment = () => {
             <CardHeader>
               <CardTitle>{t('assessment.title')}</CardTitle>
               <CardDescription>
-                These standardized tools help evaluate your mental health. All responses are confidential.
+                This standardized tool helps evaluate your mental health. All responses are confidential.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Button
-                onClick={() => setCurrentTest("phq9")}
+                onClick={() => setCurrentTest("dass21")}
                 className="w-full justify-start h-auto p-4 text-left"
                 variant="outline"
               >
                 <div className="space-y-1">
-                  <div className="font-semibold">{t('assessment.phq9')}</div>
+                  <div className="font-semibold">DASS-21 Questionnaire</div>
                   <div className="text-sm text-muted-foreground">
-                    9 questions • Assesses depression symptoms over the past 2 weeks
+                    21 questions • Assesses depression, anxiety, and stress symptoms.
                   </div>
                 </div>
-              </Button>
-              
-              <Button
-                onClick={() => setCurrentTest("gad7")}
-                className="w-full justify-start h-auto p-4 text-left"
-                variant="outline"
-              >
-                <div className="space-y-1">
-                  <div className="font-semibold">{t('assessment.gad7')}</div>
-                  <div className="text-sm text-muted-foreground">
-                    7 questions • Assesses anxiety symptoms over the past 2 weeks
-                  </div>
-                </div>
-              </Button>
-
-              <Button
-                onClick={() => setCurrentTest("phq9")}
-                className="w-full bg-gradient-to-r from-primary to-secondary"
-              >
-                {t('assessment.start')} (Both Tests)
               </Button>
             </CardContent>
           </Card>
@@ -322,6 +246,8 @@ const Assessment = () => {
 
   if (currentTest === "results") {
     const recommendations = getRecommendations();
+    const scores = testResults.dass21;
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted p-4">
         <div className="max-w-2xl mx-auto space-y-6 py-6">
@@ -334,48 +260,55 @@ const Assessment = () => {
             <h1 className="text-2xl font-bold">Assessment Complete</h1>
           </div>
 
-          {/* Results Cards */}
           <div className="space-y-4">
-            {testResults.phq9 !== undefined && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    PHQ-9 Depression Score
-                    <Badge variant={getSeverityLevel(testResults.phq9, "phq9").color as any}>
-                      {getSeverityLevel(testResults.phq9, "phq9").level}
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-primary mb-2">
-                    {testResults.phq9}/27
-                  </div>
-                  <Progress value={(testResults.phq9 / 27) * 100} className="mb-2" />
-                </CardContent>
-              </Card>
-            )}
-
-            {testResults.gad7 !== undefined && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    GAD-7 Anxiety Score
-                    <Badge variant={getSeverityLevel(testResults.gad7, "gad7").color as any}>
-                      {getSeverityLevel(testResults.gad7, "gad7").level}
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-primary mb-2">
-                    {testResults.gad7}/21
-                  </div>
-                  <Progress value={(testResults.gad7 / 21) * 100} className="mb-2" />
-                </CardContent>
-              </Card>
+            {scores && (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      Depression Score
+                      <Badge variant={getSeverityLevel(scores.depression, "depression").color as any}>
+                        {getSeverityLevel(scores.depression, "depression").level}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-primary mb-2">{scores.depression}/42</div>
+                    <Progress value={(scores.depression / 42) * 100} className="mb-2" />
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      Anxiety Score
+                      <Badge variant={getSeverityLevel(scores.anxiety, "anxiety").color as any}>
+                        {getSeverityLevel(scores.anxiety, "anxiety").level}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-primary mb-2">{scores.anxiety}/42</div>
+                    <Progress value={(scores.anxiety / 42) * 100} className="mb-2" />
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      Stress Score
+                      <Badge variant={getSeverityLevel(scores.stress, "stress").color as any}>
+                        {getSeverityLevel(scores.stress, "stress").level}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-primary mb-2">{scores.stress}/42</div>
+                    <Progress value={(scores.stress / 42) * 100} className="mb-2" />
+                  </CardContent>
+                </Card>
+              </>
             )}
           </div>
 
-          {/* Recommendations */}
           <Card className={recommendations.urgent ? "border-destructive bg-destructive/5" : ""}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -414,7 +347,6 @@ const Assessment = () => {
     );
   }
 
-  // Question Display
   const questions = getCurrentQuestions();
   const currentQ = questions[currentQuestion];
   const progress = ((currentQuestion + 1) / questions.length) * 100;
@@ -422,12 +354,9 @@ const Assessment = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted p-4">
       <div className="max-w-2xl mx-auto space-y-6 py-6">
-        {/* Header */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">
-              {currentTest === "phq9" ? "Depression Screening (PHQ-9)" : "Anxiety Screening (GAD-7)"}
-            </h1>
+            <h1 className="text-xl font-bold">DASS-21 Screening</h1>
             <Badge variant="outline">
               {currentQuestion + 1} of {questions.length}
             </Badge>
@@ -435,11 +364,10 @@ const Assessment = () => {
           <Progress value={progress} className="h-2" />
         </div>
 
-        {/* Question Card */}
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="text-lg leading-relaxed">
-              Over the last 2 weeks, how often have you been bothered by:
+              Please read each statement and select the option which indicates how much the statement applied to you over the past week.
             </CardTitle>
             <CardDescription className="text-base font-medium text-foreground">
               {currentQ.text}
@@ -463,7 +391,6 @@ const Assessment = () => {
           </CardContent>
         </Card>
 
-        {/* Navigation */}
         <div className="flex gap-3">
           <Button
             variant="outline"
